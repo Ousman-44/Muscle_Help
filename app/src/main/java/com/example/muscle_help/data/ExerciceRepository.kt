@@ -10,101 +10,64 @@ class ExerciceRepository(
     private val api: ExerciceAPI
 ) {
 
-    // Stockage temporaire en mémoire
-    private val exercicesEnMemoire = mutableListOf<Exercice>()
+    // Cache temporaire en mémoire
+    private val exercicesEnMemoire =
+        mutableMapOf<String, List<Exercice>>()
 
-    // Curseur de la prochaine page
-    private var curseurSuivant: String? = null
-
-    // Indique si la première page a été chargée
-    private var premierePageChargee = false
-
-    // Indique si toutes les pages sont chargées
-    private var dernierePageAtteinte = false
-
-    // Empêche les appels simultanés
     private val mutex = Mutex()
+
+    // Noms alternatifs des muscles
+    private val nomsAlternatifs = mapOf(
+        "abs" to "abdominals",
+        "quads" to "quadriceps",
+        "delts" to "deltoids",
+        "lats" to "upper back"
+    )
 
     suspend fun recupererExercicesParMuscle(
         muscle: String
     ): List<Exercice> = mutex.withLock {
 
-        // Charger la première page si nécessaire
-        if (!premierePageChargee) {
-            chargerPageSuivante()
+        // Vérifier le cache
+        exercicesEnMemoire[muscle]?.let {
+            return@withLock it
         }
 
-        // Filtrer les exercices déjà récupérés
-        fun exercicesDuMuscle(): List<Exercice> {
-            return exercicesEnMemoire.filter { exercice ->
-                exercice.exercicesCibles.any {
-                    it.equals(muscle, ignoreCase = true)
-                }
+        // Récupérer les exercices
+        var exercices =
+            api.recupererExercicesParMuscle(muscle)
+
+        // Essayer un nom alternatif si nécessaire
+        if (exercices.isEmpty()) {
+
+            val nomAlternatif = nomsAlternatifs[muscle]
+
+            if (nomAlternatif != null) {
+
+                Log.d(
+                    "EXERCISE_REPOSITORY",
+                    "Nouvelle recherche avec : $nomAlternatif"
+                )
+
+                exercices =
+                    api.recupererExercicesParMuscle(nomAlternatif)
             }
         }
 
-        var exercicesTrouves = exercicesDuMuscle()
+        // Supprimer les doublons
+        exercices = exercices.distinctBy { it.id }
 
-        // Charger progressivement quelques pages supplémentaires
-        var pagesChargees = 0
-        val maximumPages = 2
-        val objectifExercices = 6
-
-        while (
-            exercicesTrouves.size < objectifExercices &&
-            !dernierePageAtteinte &&
-            pagesChargees < maximumPages
-        ) {
-            chargerPageSuivante()
-            pagesChargees++
-
-            exercicesTrouves = exercicesDuMuscle()
+        // Enregistrer en mémoire
+        if (exercices.isNotEmpty()) {
+            exercicesEnMemoire[muscle] = exercices
         }
 
         Log.d(
             "EXERCISE_REPOSITORY",
-            "Muscle : $muscle, exercices : ${exercicesTrouves.size}"
+            "Muscle : $muscle | " +
+                    "Nombre d'exercices : ${exercices.size}"
         )
 
-        exercicesTrouves.distinctBy { it.id }
-    }
-
-    // Charge une page supplémentaire depuis l'API
-    private suspend fun chargerPageSuivante() {
-
-        if (dernierePageAtteinte) return
-
-        val curseurActuel = curseurSuivant
-
-        val page = api.recupererExercices(curseurActuel)
-
-        // Ajouter uniquement les nouveaux exercices
-        val idsExistants = exercicesEnMemoire
-            .map { it.id }
-            .toHashSet()
-
-        val nouveauxExercices = page.exercices.filter {
-            it.id !in idsExistants
-        }
-
-        exercicesEnMemoire.addAll(nouveauxExercices)
-
-        // Arrêter si le curseur ne progresse pas
-        if (
-            page.curseurSuivant == null ||
-            page.curseurSuivant == curseurActuel ||
-            nouveauxExercices.isEmpty()
-        ) {
-            dernierePageAtteinte = true
-        } else {
-            curseurSuivant = page.curseurSuivant
-        }
-
-        premierePageChargee = true
-
-        Log.d(
-            "EXERCISE_REPOSITORY",
-            "Total en mémoire : ${exercicesEnMemoire.size}"
-        )
+        exercices
     }
 }

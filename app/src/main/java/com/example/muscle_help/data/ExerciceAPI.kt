@@ -1,6 +1,7 @@
 
 package com.example.muscle_help.data
 
+import android.util.Log
 import com.example.muscle_help.model.Exercice
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
@@ -10,12 +11,10 @@ import io.ktor.client.request.parameter
 import io.ktor.client.statement.bodyAsText
 import org.json.JSONArray
 import org.json.JSONObject
-import org.json.JSONTokener
-import android.util.Log
 
 class ExerciceAPI {
 
-
+    // Client HTTP Ktor
     private val client = HttpClient(OkHttp) {
         expectSuccess = true
 
@@ -25,80 +24,48 @@ class ExerciceAPI {
         }
     }
 
-
+    // Adresse de base de l'API ExerciseDB
     private val urlBase =
         "https://oss.exercisedb.dev/api/v1/exercises"
 
-    // Récupérer les exercices depuis l'API
-
-
-    suspend fun recupererExercices(
-        curseur: String? = null
-    ): PageExercices {
+    // Récupérer les exercices correspondant à un muscle
+    suspend fun recupererExercicesParMuscle(
+        muscle: String
+    ): List<Exercice> {
 
         val reponse = client.get(urlBase) {
-            if (curseur != null) {
-                parameter("cursor", curseur)
-            }
+            parameter("targetMuscles", muscle)
         }
 
         val json = reponse.bodyAsText()
-        val contenu = JSONObject(json)
 
         val exercices = convertirJson(json)
 
-        val meta = contenu.optJSONObject("meta")
-
-        val curseurSuivant = meta
-            ?.optString("nextCursor")
-            ?.takeIf { it.isNotBlank() }
+        // Vérifier que les exercices correspondent au muscle
+        val exercicesFiltres = exercices.filter { exercice ->
+            exercice.exercicesCibles.any {
+                it.equals(muscle, ignoreCase = true)
+            }
+        }
 
         Log.d(
             "EXERCISE_API",
-            "Curseur actuel : $curseur | Suivant : $curseurSuivant"
-        )
-        Log.d(
-            "EXERCISE_API",
-            "Exercices reçus : ${exercices.size}"
+            "Muscle : $muscle | Reçus : ${exercices.size} | " +
+                    "Correspondants : ${exercicesFiltres.size}"
         )
 
-        return PageExercices(
-            exercices = exercices,
-            curseurSuivant = curseurSuivant
-        )
+        return exercicesFiltres.distinctBy { it.id }
     }
 
-
-
-    // Transformer le JSON en liste d'exercices
+    // Convertir la réponse JSON en liste d'exercices
     private fun convertirJson(json: String): List<Exercice> {
 
-        val contenu = JSONTokener(json).nextValue()
+        val contenu = JSONObject(json)
 
-        val tableau = when (contenu) {
-
-            is JSONArray -> contenu
-
-            is JSONObject -> {
-                val donnees = contenu.opt("data")
-
-                when (donnees) {
-                    is JSONArray -> donnees
-
-                    is JSONObject ->
-                        donnees.optJSONArray("exercises")
-                            ?: donnees.optJSONArray("results")
-                            ?: JSONArray()
-
-                    else ->
-                        contenu.optJSONArray("exercises")
-                            ?: contenu.optJSONArray("results")
-                            ?: JSONArray()
-                }
-            }
-
-            else -> JSONArray()
-        }
+        val tableau = contenu.optJSONArray("data")
+            ?: contenu.optJSONObject("data")
+                ?.optJSONArray("exercises")
+            ?: JSONArray()
 
         return (0 until tableau.length()).mapNotNull { indice ->
 
@@ -108,16 +75,25 @@ class ExerciceAPI {
             Exercice(
                 id = objet.optString("exerciseId"),
                 nom = objet.optString("name"),
-                exercicesCibles = lireListe(objet, "targetMuscles"),
-                equipements = lireListe(objet, "equipments"),
-                instructions = lireListe(objet, "instructions"),
+                exercicesCibles = lireListe(
+                    objet,
+                    "targetMuscles"
+                ),
+                equipements = lireListe(
+                    objet,
+                    "equipments"
+                ),
+                instructions = lireListe(
+                    objet,
+                    "instructions"
+                ),
                 gifUrl = objet.optString("gifUrl")
             )
 
         }.filter { it.id.isNotBlank() }
     }
 
-    // Lire une liste de chaînes dans le JSON
+    // Transformer un tableau JSON en liste Kotlin
     private fun lireListe(
         objet: JSONObject,
         champ: String
@@ -131,6 +107,7 @@ class ExerciceAPI {
         }
     }
 
+    // Fermer le client HTTP
     fun fermerClient() {
         client.close()
     }
