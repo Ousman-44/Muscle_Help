@@ -17,7 +17,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
+import com.example.muscle_help.screens.GeneratorScreen
 import com.example.muscle_help.screens.MusclesScreen
+import com.example.muscle_help.screens.PPLScreen
 
 // Les trois destinations
 data object DestinationMuscle
