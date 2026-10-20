@@ -3,25 +3,30 @@ package com.example.muscle_help
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
-import com.example.muscle_help.screens.GeneratorScreen
+
+import com.example.muscle_help.data.AppContainer
 import com.example.muscle_help.screens.MusclesScreen
 import com.example.muscle_help.screens.PPLScreen
+import com.example.muscle_help.screens.GeneratorScreen
 
-// Les trois destinations
+import com.example.muscle_help.viewmodel.MusclesViewModel
+import com.example.muscle_help.viewmodel.PPLViewModel
+import com.example.muscle_help.viewmodel.GeneratorViewModel
+
+// Destinations de l'application
 data object DestinationMuscle
 data object DestinationProgrammePPL
 data object DestinationCreationSeance
@@ -31,13 +36,16 @@ data object DestinationCreationSeance
 fun Navigation(
     modifier: Modifier = Modifier
 ) {
-    // Liste des écrans de navigation
+
+    // Historique de navigation
     val backStack = remember {
         mutableStateListOf<Any>(DestinationMuscle)
     }
 
-    // Écran actuellement affiché
-    val currentDestination = backStack.lastOrNull()
+    val destinationActuelle = backStack.lastOrNull()
+
+    // Factory permettant de créer les ViewModels
+    val factory = AppContainer.viewModelFactory
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -53,12 +61,14 @@ fun Navigation(
         bottomBar = {
             NavigationBar {
 
-                // Bouton Muscles
+                // Onglet Muscles
                 NavigationBarItem(
-                    selected = currentDestination == DestinationMuscle,
+                    selected = destinationActuelle == DestinationMuscle,
                     onClick = {
-                        backStack.clear()
-                        backStack.add(DestinationMuscle)
+                        if (destinationActuelle != DestinationMuscle) {
+                            backStack.clear()
+                            backStack.add(DestinationMuscle)
+                        }
                     },
                     icon = {
                         Icon(
@@ -71,12 +81,14 @@ fun Navigation(
                     }
                 )
 
-                // Bouton PPL
+                // Onglet PPL
                 NavigationBarItem(
-                    selected = currentDestination == DestinationProgrammePPL,
+                    selected = destinationActuelle == DestinationProgrammePPL,
                     onClick = {
-                        backStack.clear()
-                        backStack.add(DestinationProgrammePPL)
+                        if (destinationActuelle != DestinationProgrammePPL) {
+                            backStack.clear()
+                            backStack.add(DestinationProgrammePPL)
+                        }
                     },
                     icon = {
                         Icon(
@@ -89,12 +101,14 @@ fun Navigation(
                     }
                 )
 
-                // Bouton Générateur
+                // Onglet Générateur
                 NavigationBarItem(
-                    selected = currentDestination == DestinationCreationSeance,
+                    selected = destinationActuelle == DestinationCreationSeance,
                     onClick = {
-                        backStack.clear()
-                        backStack.add(DestinationCreationSeance)
+                        if (destinationActuelle != DestinationCreationSeance) {
+                            backStack.clear()
+                            backStack.add(DestinationCreationSeance)
+                        }
                     },
                     icon = {
                         Icon(
@@ -117,16 +131,58 @@ fun Navigation(
 
             entryProvider = entryProvider {
 
+                // Écran Muscles
                 entry<DestinationMuscle> {
-                    MusclesScreen()
+
+                    val vueModele: MusclesViewModel = viewModel(
+                        factory = factory
+                    )
+
+                    val etat by vueModele.etat
+                        .collectAsStateWithLifecycle()
+
+                    MusclesScreen(
+                        exercices = etat.exercices,
+                        isLoading = etat.chargement,
+                        error = etat.erreur,
+                        onMuscleSelected = vueModele::recupererExercices
+                    )
                 }
 
+                // Écran PPL
                 entry<DestinationProgrammePPL> {
-                    PPLScreen()
+
+                    val vueModele: PPLViewModel = viewModel(
+                        factory = factory
+                    )
+
+                    val etat by vueModele.etat
+                        .collectAsStateWithLifecycle()
+
+                    PPLScreen(
+                        exercices = etat.exercices,
+                        isLoading = etat.chargement,
+                        error = etat.erreur,
+                        onProgramSelected = vueModele::recupererProgramme
+                    )
                 }
 
+                // Écran Générateur
                 entry<DestinationCreationSeance> {
-                    GeneratorScreen()
+
+                    val vueModele: GeneratorViewModel = viewModel(
+                        factory = factory
+                    )
+
+                    val etat by vueModele.etat
+                        .collectAsStateWithLifecycle()
+
+                    GeneratorScreen(
+                        exercices = etat.exercices,
+                        chargement = etat.chargement,
+                        erreur = etat.erreur,
+                        onGenererSeance = vueModele::genererSeance
+                    )
                 }
             }
         )

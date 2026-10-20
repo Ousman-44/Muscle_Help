@@ -49,7 +49,7 @@ class PPLViewModel(
 
             try {
                 val exercices = mutableListOf<
-                        com.example.muscle_help.model.Exercise
+                        com.example.muscle_help.model.Exercice
                         >()
 
                 for (muscle in muscles) {
