@@ -37,8 +37,8 @@ android {
 
 dependencies {
 
-    implementation("io.ktor:ktor-client-core:3.3.2")
-    implementation("io.ktor:ktor-client-cio:3.3.2")
+
+    implementation("io.ktor:ktor-client-okhttp:3.3.2")
 
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")

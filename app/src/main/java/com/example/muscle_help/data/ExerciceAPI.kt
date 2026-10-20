@@ -3,7 +3,7 @@ package com.example.muscle_help.data
 
 import com.example.muscle_help.model.Exercice
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
+import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
@@ -11,10 +11,12 @@ import io.ktor.client.statement.bodyAsText
 import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
+import android.util.Log
 
 class ExerciceAPI {
 
-    private val client = HttpClient(CIO) {
+
+    private val client = HttpClient(OkHttp) {
         expectSuccess = true
 
         install(HttpTimeout) {
@@ -23,22 +25,50 @@ class ExerciceAPI {
         }
     }
 
+
     private val urlBase =
         "https://oss.exercisedb.dev/api/v1/exercises"
 
     // Récupérer les exercices depuis l'API
+
+
     suspend fun recupererExercices(
-        limite: Int = 100,
-        decalage: Int = 0
-    ): List<Exercice> {
+        curseur: String? = null
+    ): PageExercices {
 
         val reponse = client.get(urlBase) {
-            parameter("limit", limite)
-            parameter("offset", decalage)
+            if (curseur != null) {
+                parameter("cursor", curseur)
+            }
         }
 
-        return convertirJson(reponse.bodyAsText())
+        val json = reponse.bodyAsText()
+        val contenu = JSONObject(json)
+
+        val exercices = convertirJson(json)
+
+        val meta = contenu.optJSONObject("meta")
+
+        val curseurSuivant = meta
+            ?.optString("nextCursor")
+            ?.takeIf { it.isNotBlank() }
+
+        Log.d(
+            "EXERCISE_API",
+            "Curseur actuel : $curseur | Suivant : $curseurSuivant"
+        )
+        Log.d(
+            "EXERCISE_API",
+            "Exercices reçus : ${exercices.size}"
+        )
+
+        return PageExercices(
+            exercices = exercices,
+            curseurSuivant = curseurSuivant
+        )
     }
+
+
 
     // Transformer le JSON en liste d'exercices
     private fun convertirJson(json: String): List<Exercice> {
