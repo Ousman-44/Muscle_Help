@@ -26,7 +26,6 @@ import com.example.muscle_help.viewmodel.MusclesViewModel
 import com.example.muscle_help.viewmodel.PPLViewModel
 import com.example.muscle_help.viewmodel.GeneratorViewModel
 
-// Destinations de l'application
 data object DestinationMuscle
 data object DestinationProgrammePPL
 data object DestinationCreationSeance

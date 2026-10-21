@@ -10,13 +10,13 @@ class ExerciceRepository(
     private val api: ExerciceAPI
 ) {
 
-    // Cache temporaire en mémoire
+    // Exercices conservés temporairement en mémoire
     private val exercicesEnMemoire =
         mutableMapOf<String, List<Exercice>>()
 
     private val mutex = Mutex()
 
-    // Noms alternatifs des muscles
+    // Noms alternatifs pour les muscles
     private val nomsAlternatifs = mapOf(
         "abs" to "abdominals",
         "quads" to "quadriceps",
@@ -28,44 +28,32 @@ class ExerciceRepository(
         muscle: String
     ): List<Exercice> = mutex.withLock {
 
-        // Vérifier le cache
+        // Utiliser les exercices déjà récupérés
         exercicesEnMemoire[muscle]?.let {
             return@withLock it
         }
 
-        // Récupérer les exercices
-        var exercices =
-            api.recupererExercicesParMuscle(muscle)
+        var exercices = api.recupererExercicesParMuscle(muscle)
 
-        // Essayer un nom alternatif si nécessaire
+        // Essayer un autre nom si aucun exercice
         if (exercices.isEmpty()) {
+            val autreNom = nomsAlternatifs[muscle]
 
-            val nomAlternatif = nomsAlternatifs[muscle]
-
-            if (nomAlternatif != null) {
-
-                Log.d(
-                    "EXERCISE_REPOSITORY",
-                    "Nouvelle recherche avec : $nomAlternatif"
+            if (autreNom != null) {
+                exercices = api.recupererExercicesParMuscle(
+                    autreNom
                 )
-
-                exercices =
-                    api.recupererExercicesParMuscle(nomAlternatif)
             }
         }
 
-        // Supprimer les doublons
         exercices = exercices.distinctBy { it.id }
 
-        // Enregistrer en mémoire
-        if (exercices.isNotEmpty()) {
-            exercicesEnMemoire[muscle] = exercices
-        }
+        // Mémoriser également les listes vides
+        exercicesEnMemoire[muscle] = exercices
 
         Log.d(
             "EXERCISE_REPOSITORY",
-            "Muscle : $muscle | " +
-                    "Nombre d'exercices : ${exercices.size}"
+            "Muscle : $muscle | Exercices : ${exercices.size}"
         )
 
         exercices

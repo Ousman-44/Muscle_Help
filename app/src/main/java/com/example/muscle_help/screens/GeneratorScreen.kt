@@ -29,31 +29,37 @@ fun GeneratorScreen(
         mutableStateOf(false)
     }
 
+    var generationDemandee by remember {
+        mutableStateOf(false)
+    }
+
+    var nombreDemande by remember {
+        mutableIntStateOf(4)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-
         Text(
             text = "Générateur de séance",
             style = MaterialTheme.typography.headlineMedium
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(Modifier.height(8.dp))
 
         Text("Personnalise ton entraînement.")
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(Modifier.height(16.dp))
 
         Text(
             text = "Muscle à travailler",
             style = MaterialTheme.typography.titleMedium
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(Modifier.height(8.dp))
 
-        // Menu déroulant pour choisir le muscle
         Box {
             OutlinedButton(
                 onClick = {
@@ -61,7 +67,8 @@ fun GeneratorScreen(
                 }
             ) {
                 Text(
-                    muscles[muscleSelectionne] ?: muscleSelectionne
+                    muscles[muscleSelectionne]
+                        ?: muscleSelectionne
                 )
             }
 
@@ -72,7 +79,6 @@ fun GeneratorScreen(
                 }
             ) {
                 muscles.forEach { (identifiant, nomMuscle) ->
-
                     DropdownMenuItem(
                         text = {
                             Text(nomMuscle)
@@ -86,9 +92,8 @@ fun GeneratorScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(Modifier.height(20.dp))
 
-        // Choix du nombre d'exercices
         Text(
             text = "Nombre d'exercices : $nombreExercices",
             style = MaterialTheme.typography.titleMedium
@@ -96,18 +101,20 @@ fun GeneratorScreen(
 
         Slider(
             value = nombreExercices.toFloat(),
-            onValueChange = { nouvelleValeur ->
-                nombreExercices = nouvelleValeur.toInt()
+            onValueChange = { valeur ->
+                nombreExercices = valeur.toInt()
             },
             valueRange = 2f..8f,
             steps = 5
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(Modifier.height(12.dp))
 
-        // Bouton pour générer la séance
         Button(
             onClick = {
+                nombreDemande = nombreExercices
+                generationDemandee = true
+
                 onGenererSeance(
                     muscleSelectionne,
                     nombreExercices
@@ -119,38 +126,65 @@ fun GeneratorScreen(
             Text("Générer ma séance")
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(Modifier.height(20.dp))
 
         Text(
             text = "Ma séance",
             style = MaterialTheme.typography.titleLarge
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(Modifier.height(12.dp))
 
-        // Affichage des résultats
         when {
             chargement -> {
                 CircularProgressIndicator()
+                Spacer(Modifier.height(8.dp))
+                Text("Création de la séance...")
             }
 
             erreur != null -> {
-                Text("Erreur : $erreur")
+                Text(
+                    text = "Erreur : $erreur",
+                    color = MaterialTheme.colorScheme.error
+                )
             }
 
             exercices.isEmpty() -> {
-                Text("Génère une séance pour commencer.")
+                Text(
+                    if (generationDemandee) {
+                        "Aucun exercice trouvé pour cette séance."
+                    } else {
+                        "Génère une séance pour commencer."
+                    }
+                )
             }
 
             else -> {
+                Text(
+                    text = "${exercices.size} exercices dans la séance",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                if (exercices.size < nombreDemande) {
+                    Spacer(Modifier.height(6.dp))
+
+                    Text(
+                        text = "Seulement ${exercices.size} exercice(s) " +
+                                "disponible(s) sur les $nombreDemande demandés.",
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
+
+                Spacer(Modifier.height(12.dp))
+
                 LazyColumn(
+                    modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(
                         exercices,
                         key = { it.id }
                     ) { exercice ->
-
                         CarteExercice(exercice)
                     }
                 }

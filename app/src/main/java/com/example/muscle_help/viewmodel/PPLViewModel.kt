@@ -1,9 +1,11 @@
 
 package com.example.muscle_help.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.muscle_help.data.ExerciceRepository
+import com.example.muscle_help.model.Exercice
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,6 +17,7 @@ class PPLViewModel(
 ) : ViewModel() {
 
     private val _etat = MutableStateFlow(EtatExercices())
+
     val etat: StateFlow<EtatExercices> = _etat
 
     private var rechercheEnCours: Job? = null
@@ -47,33 +50,47 @@ class PPLViewModel(
                 chargement = true
             )
 
-            try {
-                val exercices = mutableListOf<
-                        com.example.muscle_help.model.Exercice
-                        >()
+            val exercices = mutableListOf<Exercice>()
+            var erreurRencontree = false
 
+            try {
                 for (muscle in muscles) {
 
-                    val resultat = repository
-                        .recupererExercicesParMuscle(muscle)
+                    try {
+                        val resultat = repository
+                            .recupererExercicesParMuscle(muscle)
 
-                    exercices.addAll(
-                        resultat.take(2)
-                    )
+                        exercices.addAll(resultat.take(2))
+
+                    } catch (e: CancellationException) {
+                        throw e
+
+                    } catch (e: Exception) {
+                        erreurRencontree = true
+
+                        Log.e(
+                            "PPL_VIEWMODEL",
+                            "Erreur pour le muscle : $muscle",
+                            e
+                        )
+                    }
                 }
 
+                val seance = exercices.distinctBy { it.id }
+
                 _etat.value = EtatExercices(
-                    exercices = exercices.distinctBy { it.id }
+                    exercices = seance,
+                    erreur = if (
+                        erreurRencontree && seance.isEmpty()
+                    ) {
+                        "Impossible de charger le programme."
+                    } else {
+                        null
+                    }
                 )
 
             } catch (e: CancellationException) {
                 throw e
-
-            } catch (e: Exception) {
-                _etat.value = EtatExercices(
-                    erreur = e.message
-                        ?: "Impossible de charger le programme"
-                )
             }
         }
     }

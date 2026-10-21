@@ -81,21 +81,36 @@ fun MusclesScreen(
         when {
             isLoading -> {
                 CircularProgressIndicator()
+                Spacer(Modifier.height(8.dp))
+                Text("Chargement des exercices...")
             }
 
             error != null -> {
-                Text("Erreur : $error")
+                Text(
+                    text = "Impossible de charger les exercices.",
+                    color = MaterialTheme.colorScheme.error
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(error)
             }
 
             exercices.isEmpty() -> {
-                Text("Aucun exercice disponible.")
+                Text("Aucun exercice trouvé pour ce muscle.")
             }
 
             else -> {
+                Text("${exercices.size} exercice(s) trouvé(s)")
+
+                Spacer(Modifier.height(12.dp))
+
                 LazyColumn(
+                    modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(exercices, key = { it.id }) { exercice ->
+                    items(
+                        exercices,
+                        key = { it.id }
+                    ) { exercice ->
                         CarteExercice(exercice)
                     }
                 }
@@ -106,7 +121,8 @@ fun MusclesScreen(
 
 @Composable
 fun CarteExercice(exercice: Exercice) {
-    var expanded by remember {
+
+    var expanded by remember(exercice.id) {
         mutableStateOf(false)
     }
 
@@ -115,9 +131,13 @@ fun CarteExercice(exercice: Exercice) {
     ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { expanded = !expanded }
+            .clickable {
+                expanded = !expanded
+            }
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
             Text(
                 text = exercice.nom,
                 style = MaterialTheme.typography.titleMedium
@@ -126,23 +146,32 @@ fun CarteExercice(exercice: Exercice) {
             Spacer(Modifier.height(6.dp))
 
             Text(
-                "Matériel : ${exercice.equipements.joinToString()}"
+                text = "Matériel : " +
+                        exercice.equipements.joinToString(", ")
             )
 
+            Spacer(Modifier.height(8.dp))
+
             if (expanded) {
-                Spacer(Modifier.height(12.dp))
 
                 Text(
-                    "Instructions",
+                    text = "Instructions",
                     style = MaterialTheme.typography.titleSmall
                 )
 
-                exercice.instructions.forEachIndexed { index, instruction ->
+                Spacer(Modifier.height(8.dp))
+
+                exercice.instructions.forEachIndexed {
+                        index, instruction ->
+
                     Text("${index + 1}. $instruction")
                     Spacer(Modifier.height(6.dp))
                 }
 
                 if (exercice.gifUrl.isNotBlank()) {
+
+                    Spacer(Modifier.height(8.dp))
+
                     TextButton(
                         onClick = {
                             uriHandler.openUri(exercice.gifUrl)
@@ -151,8 +180,20 @@ fun CarteExercice(exercice: Exercice) {
                         Text("Voir le GIF")
                     }
                 }
+
+                TextButton(
+                    onClick = {
+                        expanded = false
+                    }
+                ) {
+                    Text("Réduire")
+                }
+
             } else {
-                Text("Appuie pour voir les détails")
+                Text(
+                    text = "Appuie pour voir les détails",
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }
